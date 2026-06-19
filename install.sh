@@ -62,17 +62,17 @@ show_main_menu() {
  |_|   |_| \_/_/   \_\_| |___|_|\_\ |_____/_/  |_| |_| \_/_/   \_\____/  
 "
     print_rainbow "$ascii_art"
-    echo -e "\n${BOLD}${CYAN}--- MAIN MENU ---${NC}\n"
+    
+    # Custom Box Style Menu (As requested!)
+    echo -e "${CYAN}--------------------------------------"
+    echo -e "|              MAIN MENU             |"
+    echo -e "--------------------------------------${NC}\n"
     echo -e " ${GREEN}[A]${NC} Panel Section"
     echo -e " ${RED}[E]${NC} Exit"
     echo -e ""
     
-    # Terminal input buffer reset (Taaki auto-invalid na aaye)
-    stty sane
-    fflush_input 2>/dev/null
-    
-    # -r flag extra slashes avoid karne ke liye
-    read -r -p "Select an option: " main_choice
+    # </dev/tty direct keyboard input read karne ke liye forced hai
+    read -r -p "Select an option: " main_choice </dev/tty
 
     case "$main_choice" in
         [Aa]) show_panel_menu ;;
@@ -83,13 +83,14 @@ show_main_menu() {
 
 show_panel_menu() {
     clear
-    echo -e "\n${BOLD}${CYAN}--- PANEL SECTION ---${NC}\n"
+    echo -e "${CYAN}--------------------------------------"
+    echo -e "|            PANEL SECTION           |"
+    echo -e "--------------------------------------${NC}\n"
     echo -e " ${GREEN}[1]${NC} Pterodactyl Installer 🐦"
     echo -e " ${YELLOW}[B]${NC} Back to Main Menu"
     echo -e ""
     
-    stty sane
-    read -r -p "Select an option: " panel_choice
+    read -r -p "Select an option: " panel_choice </dev/tty
 
     case "$panel_choice" in
         1) start_pterodactyl_installer ;;
@@ -105,18 +106,17 @@ start_pterodactyl_installer() {
     echo -e "      PTERODACTYL INSTALLER WIZARD 🐦     "
     echo -e "==========================================${NC}\n"
 
-    # Inputs taking cleanly
-    read -r -p "Enter Admin Email: " admin_email
-    read -r -p "Enter Admin Username: " admin_user
-    read -r -p "Enter First Name: " first_name
-    read -r -p "Enter Last Name: " last_name
-    read -r -s -p "Enter Password: " admin_password
+    read -r -p "Enter Admin Email: " admin_email </dev/tty
+    read -r -p "Enter Admin Username: " admin_user </dev/tty
+    read -r -p "Enter First Name: " first_name </dev/tty
+    read -r -p "Enter Last Name: " last_name </dev/tty
+    read -r -s -p "Enter Password: " admin_password </dev/tty
     echo -e "\n"
 
     echo -e "${YELLOW}[*] Preparing system for installation...${NC}"
     custom_progress_bar "Installing Dependencies"
 
-    # Pterodactyl Automation Script Execution
+    # Background silent install
     bash <(curl -s https://pterodactyl-installer.se) --can-target-this-with-flags \
          --email "$admin_email" \
          --username "$admin_user" \
@@ -135,7 +135,7 @@ start_pterodactyl_installer() {
 
     # Cloudflare Question Prompt
     while true; do
-        read -r -p "Did You Add Localhost:80 to cloudflare? [y/n]: " cf_choice
+        read -r -p "Did You Add Localhost:80 to cloudflare? [y/n]: " cf_choice </dev/tty
         case "$cf_choice" in
             [Yy]* ) 
                 echo -e "\n${GREEN}[✔] Awesome! Secure connection established via Cloudflare Tunnel.${NC}"
@@ -154,12 +154,6 @@ start_pterodactyl_installer() {
     echo -e "\n${GREEN}${BOLD}===================================================="
     echo -e " 🎉 Pterodactyl installed, Enjoy Your Journey.... 🐦 "
     echo -e "====================================================${NC}\n"
-}
-
-# Dummy helper function to empty bash stream
-fflush_input() {
-    local dummy
-    while read -r -t 0.01 dummy; do :; done
 }
 
 # --- START SCRIPT ---
