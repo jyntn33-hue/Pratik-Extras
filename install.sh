@@ -30,24 +30,45 @@ print_rainbow() {
     printf "\033[0m"
 }
 
-# Advanced Custom Progress Bar Function
+# Fixed Single-Line Progress Bar Function
 custom_progress_bar() {
+    local pid_to_watch=$1
     local steps=50
-    local messages=("($1)" "Scripting..." "Initializing..." "Extracting..." "Zipping..." "Configuring Database..." "Finalizing...")
-    echo "" 
-    for ((i=0; i<=steps; i++)); do
+    local messages=("Scripting..." "Initializing..." "Extracting..." "Zipping..." "Configuring Database..." "Finalizing...")
+    
+    # Pehle cursor setup ke liye space banao
+    echo ""
+    echo ""
+
+    # Jab tak background pid chal raha hai ya bar complete nahi hota
+    local i=0
+    while kill -0 $pid_to_watch 2>/dev/null || [ $i -le $steps ]; do
         local percent=$(( i * 100 / steps ))
         local msg_index=$(( i / (steps / ${#messages[@]}) ))
         if [ $msg_index -ge ${#messages[@]} ]; then msg_index=$(( ${#messages[@]} - 1 )); fi
         
-        printf "\033[A\r\033[K${GREEN}${BOLD}%s${NC}\n" "${messages[$msg_index]}"
-        printf "\r${GREEN}["
+        # Do line upar jaakar text aur bar overwrite karo (no duplicate prints!)
+        printf "\033[A\033[A\r\033[K${GREEN}${BOLD}%s${NC}\n" "${messages[$msg_index]}"
+        printf "\r\033[K${GREEN}["
         for ((j=0; j<i; j++)); do printf "■"; done
         for ((j=i; j<steps; j++)); do printf " "; done
-        printf "] %d%%${NC}" "$percent"
-        sleep 0.04
+        printf "] %d%%${NC}\n" "$percent"
+        
+        # Agar loop slow chalana ho jab script sach me heavy ho
+        if kill -0 $pid_to_watch 2>/dev/null; then
+            if [ $i -lt $steps ]; then
+                ((i++))
+            fi
+            sleep 0.1
+        else
+            # Agar background execution khatam ho gayi, toh tezi se 100% karo
+            if [ $i -le $steps ]; then
+                ((i++))
+                sleep 0.02
+            fi
+        fi
     done
-    echo -e "\n"
+    echo ""
 }
 
 # --- MENU NAVIGATION ---
@@ -63,7 +84,6 @@ show_main_menu() {
 "
     print_rainbow "$ascii_art"
     
-    # Custom Box Style Menu (As requested!)
     echo -e "${CYAN}--------------------------------------"
     echo -e "|              MAIN MENU             |"
     echo -e "--------------------------------------${NC}\n"
@@ -71,7 +91,6 @@ show_main_menu() {
     echo -e " ${RED}[E]${NC} Exit"
     echo -e ""
     
-    # </dev/tty direct keyboard input read karne ke liye forced hai
     read -r -p "Select an option: " main_choice </dev/tty
 
     case "$main_choice" in
@@ -114,9 +133,8 @@ start_pterodactyl_installer() {
     echo -e "\n"
 
     echo -e "${YELLOW}[*] Preparing system for installation...${NC}"
-    custom_progress_bar "Installing Dependencies"
 
-    # Background silent install
+    # Pterodactyl installer starting in background silently
     bash <(curl -s https://pterodactyl-installer.se) --can-target-this-with-flags \
          --email "$admin_email" \
          --username "$admin_user" \
@@ -126,9 +144,8 @@ start_pterodactyl_installer() {
          
     pid=$!
     
-    while kill -0 $pid 2>/dev/null; do
-        custom_progress_bar "Pterodactyl Core Processing"
-    done
+    # Ab sirf single progress bar handle hoga bina kisi duplicate lines ke!
+    custom_progress_bar $pid
 
     clear
     echo -e "${GREEN}${BOLD}✔ Pterodactyl Core Files Installed Successfully!${NC}\n"
