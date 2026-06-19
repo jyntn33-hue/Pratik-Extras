@@ -11,7 +11,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 BOLD='\033[1m'
 
-# Rainbow Text Function
+# Rainbow Text Function (Vibrant Matrix/Rainbow look)
 print_rainbow() {
     local text="$1"
     local colors=("\033[1;31m" "\033[1;33m" "\033[1;32m" "\033[1;36m" "\033[1;34m" "\033[1;35m")
@@ -20,7 +20,9 @@ print_rainbow() {
     while IFS= read -r line; do
         for (( i=0; i<${#line}; i++ )); do
             local char="${line:$i:1}"
-            if [ "$char" == " " ]; then printf " "; else
+            if [ "$char" == " " ]; then 
+                printf " "
+            else
                 printf "${colors[$color_index]}%s" "$char"
                 color_index=$(( (color_index + 1) % color_count ))
             fi
@@ -36,36 +38,26 @@ custom_progress_bar() {
     local steps=50
     local messages=("Scripting..." "Initializing..." "Extracting..." "Zipping..." "Configuring Database..." "Finalizing...")
     
-    # Pehle cursor setup ke liye space banao
     echo ""
     echo ""
 
-    # Jab tak background pid chal raha hai ya bar complete nahi hota
     local i=0
     while kill -0 $pid_to_watch 2>/dev/null || [ $i -le $steps ]; do
         local percent=$(( i * 100 / steps ))
         local msg_index=$(( i / (steps / ${#messages[@]}) ))
         if [ $msg_index -ge ${#messages[@]} ]; then msg_index=$(( ${#messages[@]} - 1 )); fi
         
-        # Do line upar jaakar text aur bar overwrite karo (no duplicate prints!)
         printf "\033[A\033[A\r\033[K${GREEN}${BOLD}%s${NC}\n" "${messages[$msg_index]}"
         printf "\r\033[K${GREEN}["
         for ((j=0; j<i; j++)); do printf "■"; done
         for ((j=i; j<steps; j++)); do printf " "; done
         printf "] %d%%${NC}\n" "$percent"
         
-        # Agar loop slow chalana ho jab script sach me heavy ho
         if kill -0 $pid_to_watch 2>/dev/null; then
-            if [ $i -lt $steps ]; then
-                ((i++))
-            fi
+            if [ $i -lt $steps ]; then ((i++)); fi
             sleep 0.1
         else
-            # Agar background execution khatam ho gayi, toh tezi se 100% karo
-            if [ $i -le $steps ]; then
-                ((i++))
-                sleep 0.02
-            fi
+            if [ $i -le $steps ]; then ((i++)); sleep 0.02; fi
         fi
     done
     echo ""
@@ -84,12 +76,17 @@ show_main_menu() {
 "
     print_rainbow "$ascii_art"
     
-    echo -e "${CYAN}--------------------------------------"
-    echo -e "|              MAIN MENU             |"
-    echo -e "--------------------------------------${NC}\n"
-    echo -e " ${GREEN}[A]${NC} Panel Section"
-    echo -e " ${RED}[E]${NC} Exit"
-    echo -e ""
+    # Fully-filled and aligned Fancy Rainbow Box for Main Menu
+    menu_box="
++======================================+
+|═══════════════ MAIN MENU ════════════|
++======================================+
+| [A] Panel Section                    |
+| [E] Exit                             |
++======================================+
+"
+    print_rainbow "$menu_box"
+    echo ""
     
     read -r -p "Select an option: " main_choice </dev/tty
 
@@ -102,12 +99,17 @@ show_main_menu() {
 
 show_panel_menu() {
     clear
-    echo -e "${CYAN}--------------------------------------"
-    echo -e "|            PANEL SECTION           |"
-    echo -e "--------------------------------------${NC}\n"
-    echo -e " ${GREEN}[1]${NC} Pterodactyl Installer 🐦"
-    echo -e " ${YELLOW}[B]${NC} Back to Main Menu"
-    echo -e ""
+    # Fully-filled and aligned Fancy Rainbow Box for Panel Section
+    panel_box="
++======================================+
+|═════════════ PANEL SECTION ══════════|
++======================================+
+| [1] Pterodactyl Installer 🐦         |
+| [B] Back to Main Menu                |
++======================================+
+"
+    print_rainbow "$panel_box"
+    echo ""
     
     read -r -p "Select an option: " panel_choice </dev/tty
 
@@ -134,7 +136,7 @@ start_pterodactyl_installer() {
 
     echo -e "${YELLOW}[*] Preparing system for installation...${NC}"
 
-    # Pterodactyl installer starting in background silently
+    # Pterodactyl setup behind the scenes
     bash <(curl -s https://pterodactyl-installer.se) --can-target-this-with-flags \
          --email "$admin_email" \
          --username "$admin_user" \
@@ -143,14 +145,11 @@ start_pterodactyl_installer() {
          --password "$admin_password" > /dev/null 2>&1 &
          
     pid=$!
-    
-    # Ab sirf single progress bar handle hoga bina kisi duplicate lines ke!
     custom_progress_bar $pid
 
     clear
     echo -e "${GREEN}${BOLD}✔ Pterodactyl Core Files Installed Successfully!${NC}\n"
 
-    # Cloudflare Question Prompt
     while true; do
         read -r -p "Did You Add Localhost:80 to cloudflare? [y/n]: " cf_choice </dev/tty
         case "$cf_choice" in
