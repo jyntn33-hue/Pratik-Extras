@@ -11,7 +11,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 BOLD='\033[1m'
 
-# Rainbow Text Function (Bold + Multi-color character by character)
+# Rainbow Text Function
 print_rainbow() {
     local text="$1"
     local colors=("\033[1;31m" "\033[1;33m" "\033[1;32m" "\033[1;36m" "\033[1;34m" "\033[1;35m")
@@ -40,13 +40,12 @@ custom_progress_bar() {
         local msg_index=$(( i / (steps / ${#messages[@]}) ))
         if [ $msg_index -ge ${#messages[@]} ]; then msg_index=$(( ${#messages[@]} - 1 )); fi
         
-        # Boring standard output hide karne ke liye upar line override
         printf "\033[A\r\033[K${GREEN}${BOLD}%s${NC}\n" "${messages[$msg_index]}"
         printf "\r${GREEN}["
         for ((j=0; j<i; j++)); do printf "■"; done
         for ((j=i; j<steps; j++)); do printf " "; done
         printf "] %d%%${NC}" "$percent"
-        sleep 0.06
+        sleep 0.04
     done
     echo -e "\n"
 }
@@ -67,12 +66,18 @@ show_main_menu() {
     echo -e " ${GREEN}[A]${NC} Panel Section"
     echo -e " ${RED}[E]${NC} Exit"
     echo -e ""
-    read -p "Select an option: " main_choice
+    
+    # Terminal input buffer reset (Taaki auto-invalid na aaye)
+    stty sane
+    fflush_input 2>/dev/null
+    
+    # -r flag extra slashes avoid karne ke liye
+    read -r -p "Select an option: " main_choice
 
-    case $main_choice in
+    case "$main_choice" in
         [Aa]) show_panel_menu ;;
         [Ee]) echo -e "\n${YELLOW}Goodbye!${NC}"; exit 0 ;;
-        *) echo -e "\n${RED}Invalid Option!${NC}"; sleep 2; show_main_menu ;;
+        *) echo -e "\n${RED}Invalid Option! Given: '$main_choice'${NC}"; sleep 2; show_main_menu ;;
     esac
 }
 
@@ -82,12 +87,14 @@ show_panel_menu() {
     echo -e " ${GREEN}[1]${NC} Pterodactyl Installer 🐦"
     echo -e " ${YELLOW}[B]${NC} Back to Main Menu"
     echo -e ""
-    read -p "Select an option: " panel_choice
+    
+    stty sane
+    read -r -p "Select an option: " panel_choice
 
-    case $panel_choice in
+    case "$panel_choice" in
         1) start_pterodactyl_installer ;;
         [Bb]) show_main_menu ;;
-        *) echo -e "\n${RED}Invalid Option!${NC}"; sleep 2; show_panel_menu ;;
+        *) echo -e "\n${RED}Invalid Option! Given: '$panel_choice'${NC}"; sleep 2; show_panel_menu ;;
     esac
 }
 
@@ -98,22 +105,18 @@ start_pterodactyl_installer() {
     echo -e "      PTERODACTYL INSTALLER WIZARD 🐦     "
     echo -e "==========================================${NC}\n"
 
-    # Input values from user
-    read -p "Enter Admin Email: " admin_email
-    read -p "Enter Admin Username: " admin_user
-    read -p "Enter First Name: " first_name
-    read -p "Enter Last Name: " last_name
-    read -s -p "Enter Password: " admin_password
+    # Inputs taking cleanly
+    read -r -p "Enter Admin Email: " admin_email
+    read -r -p "Enter Admin Username: " admin_user
+    read -r -p "Enter First Name: " first_name
+    read -r -p "Enter Last Name: " last_name
+    read -r -s -p "Enter Password: " admin_password
     echo -e "\n"
 
-    # Back-end Installation (Boring logs are hidden using > /dev/null 2>&1)
     echo -e "${YELLOW}[*] Preparing system for installation...${NC}"
-    
-    # Custom Fake/Real combined Progress Bar for user satisfaction
     custom_progress_bar "Installing Dependencies"
 
-    # Yahan back-end me automatic script execute hogi silently 
-    # Hum official unofficial script ko values pass kar rhe hain automated way me
+    # Pterodactyl Automation Script Execution
     bash <(curl -s https://pterodactyl-installer.se) --can-target-this-with-flags \
          --email "$admin_email" \
          --username "$admin_user" \
@@ -123,7 +126,6 @@ start_pterodactyl_installer() {
          
     pid=$!
     
-    # Jab tak back-end installation chal rahi hai, progress animation chalti rahegi
     while kill -0 $pid 2>/dev/null; do
         custom_progress_bar "Pterodactyl Core Processing"
     done
@@ -131,10 +133,10 @@ start_pterodactyl_installer() {
     clear
     echo -e "${GREEN}${BOLD}✔ Pterodactyl Core Files Installed Successfully!${NC}\n"
 
-    # Cloudflare Question Prompt [y/n]
+    # Cloudflare Question Prompt
     while true; do
-        read -p "Did You Add Localhost:80 to cloudflare? [y/n]: " cf_choice
-        case $cf_choice in
+        read -r -p "Did You Add Localhost:80 to cloudflare? [y/n]: " cf_choice
+        case "$cf_choice" in
             [Yy]* ) 
                 echo -e "\n${GREEN}[✔] Awesome! Secure connection established via Cloudflare Tunnel.${NC}"
                 break
@@ -149,10 +151,15 @@ start_pterodactyl_installer() {
         esac
     done
 
-    # Grand Finale Output
     echo -e "\n${GREEN}${BOLD}===================================================="
     echo -e " 🎉 Pterodactyl installed, Enjoy Your Journey.... 🐦 "
     echo -e "====================================================${NC}\n"
+}
+
+# Dummy helper function to empty bash stream
+fflush_input() {
+    local dummy
+    while read -r -t 0.01 dummy; do :; done
 }
 
 # --- START SCRIPT ---
